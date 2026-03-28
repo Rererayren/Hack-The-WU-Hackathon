@@ -1,0 +1,17 @@
+/* This makes the "scanLineStyle" move from top to bottom */
+@keyframes scan {
+  0% { 
+    top: 0%; 
+    opacity: 0; 
+  }
+  20% { 
+    opacity: 1; 
+  }
+  80% { 
+    opacity: 1; 
+  }
+  100% { 
+    top: 100%; 
+    opacity: 0; 
+  }
+}
