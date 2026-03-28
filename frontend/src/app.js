@@ -2,15 +2,15 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import SafetyCamera from './pages/SafetyCamera';
+import GameMode from './pages/GameMode'; // New Import
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* This is your original study guide page */}
-        <Route path="/" element={<Dashboard />} /> 
-        {/* This is your new safety camera page */}
+        <Route path="/" element={<Dashboard />} />
         <Route path="/safety" element={<SafetyCamera />} />
+        <Route path="/game" element={<GameMode />} /> {/* New Route */}
       </Routes>
     </Router>
   );
