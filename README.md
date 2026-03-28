@@ -1,4 +1,10 @@
-# 🚀 Gemini Hackathon Project
+# Hack-the-Wu
+
+Team: Banh Mi Tacos
+
+Members: Renee Amaya, Sydney Pham, Miranda Salazar, Jenny Le
+
+Prompt Chosen: Design an interactive station that allows siblings to play along without interfering with the driver's safety/ attention for GoBabyGo vehicles.
 
 ## Setup Instructions
 1. **Clone the repo**
