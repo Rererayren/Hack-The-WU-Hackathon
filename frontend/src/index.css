@@ -1,17 +1,25 @@
-/* This makes the "scanLineStyle" move from top to bottom */
+/* Makes the Horse run from left to right */
+@keyframes gallop {
+  0% { left: -50px; }
+  100% { left: 110%; }
+}
+
+/* Updated Scanning Animation */
 @keyframes scan {
-  0% { 
-    top: 0%; 
-    opacity: 0; 
-  }
-  20% { 
-    opacity: 1; 
-  }
-  80% { 
-    opacity: 1; 
-  }
-  100% { 
-    top: 100%; 
-    opacity: 0; 
-  }
+  0% { top: 0%; opacity: 0.2; }
+  50% { top: 100%; opacity: 1; }
+  100% { top: 0%; opacity: 0.2; }
+}
+
+/* Gentle pulse for the sleeping pony */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* Button "Squish" */
+button:active {
+  transform: translateY(6px);
+  box-shadow: 0 2px 0px #2E7D32 !important;
 }
