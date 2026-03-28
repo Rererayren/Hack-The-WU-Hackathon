@@ -2,27 +2,39 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 function GameMode() {
-  // Game State
   const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(localStorage.getItem('horseHighScore') || 0);
+  const [highScore, setHighScore] = useState(
+    localStorage.getItem('horseHighScore') || 0
+  );
   const [gameActive, setGameActive] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  
-  // Entity Positions
-  const [horseX, setHorseX] = useState(50);
-  const [carrot, setCarrot] = useState({ x: Math.random() * 90, y: -10 });
-  
+
+  // Horse (SMOOTH CONTROL)
+  const horseX = useRef(50);
+  const horseTargetX = useRef(50);
+
+  // Force re-render for animation
+  const [, setRender] = useState(0);
+
+  // Carrot
+  const [carrot, setCarrot] = useState({
+    x: Math.random() * 90,
+    y: -10
+  });
+
   const gameLoop = useRef();
 
-  // 1. Movement Handler (Mouse/Touch)
+  // 🎮 Smooth Mouse Movement
   const handleMove = (e) => {
     if (!gameActive) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
-    setHorseX(Math.max(10, Math.min(90, x)));
+
+    horseTargetX.current = Math.max(10, Math.min(90, x));
   };
 
-  // 2. Start Game Logic
+  // ▶️ Start Game
   const startGame = () => {
     setScore(0);
     setGameOver(false);
@@ -30,39 +42,48 @@ function GameMode() {
     setCarrot({ x: Math.random() * 90, y: -10 });
   };
 
-  // 3. Game Engine (Gravity & Collision)
+  // 🎯 Game Loop
   useEffect(() => {
-    if (gameActive && !gameOver) {
-      const frame = () => {
-        setCarrot((prev) => {
-          let nextY = prev.y + 1.8; // Gravity speed
+    if (!gameActive || gameOver) return;
 
-          // Collision Detection (Did the Horse catch the Carrot?)
-          const hit = nextY > 78 && nextY < 88 && Math.abs(prev.x - horseX) < 12;
+    const frame = () => {
+      // 🐎 Smooth horse movement (LERP)
+      horseX.current += (horseTargetX.current - horseX.current) * 0.15;
 
-          if (hit) {
-            setScore(s => s + 1);
-            return { x: Math.random() * 90, y: -10 };
-          }
+      setCarrot((prev) => {
+        let nextY = prev.y + 1.8;
 
-          // Game Over Logic (Carrot hit the ground)
-          if (nextY > 105) {
-            setGameOver(true);
-            setGameActive(false);
-            return prev;
-          }
+        // 🎯 Collision detection
+        const hit =
+          nextY > 78 &&
+          nextY < 88 &&
+          Math.abs(prev.x - horseX.current) < 12;
 
-          return { ...prev, y: nextY };
-        });
-        gameLoop.current = requestAnimationFrame(frame);
-      };
+        if (hit) {
+          setScore((s) => s + 1);
+          return { x: Math.random() * 90, y: -10 };
+        }
+
+        // 💀 Game Over
+        if (nextY > 105) {
+          setGameOver(true);
+          setGameActive(false);
+          return prev;
+        }
+
+        return { ...prev, y: nextY };
+      });
+
+      setRender((r) => r + 1); // force redraw
       gameLoop.current = requestAnimationFrame(frame);
-    }
+    };
+
+    gameLoop.current = requestAnimationFrame(frame);
 
     return () => cancelAnimationFrame(gameLoop.current);
-  }, [gameActive, gameOver, horseX]);
+  }, [gameActive, gameOver]);
 
-  // 4. Save High Score
+  // 🏆 High Score
   useEffect(() => {
     if (score > highScore) {
       setHighScore(score);
@@ -72,7 +93,8 @@ function GameMode() {
 
   return (
     <div style={containerStyle}>
-      {/* Header Bar */}
+      
+      {/* HEADER */}
       <div style={headerStyle}>
         <Link to="/" style={exitButtonStyle}>🏠 EXIT</Link>
         <div style={statContainer}>
@@ -81,145 +103,126 @@ function GameMode() {
         </div>
       </div>
 
-      {/* Game Window */}
-      <div 
-        onMouseMove={handleMove} 
-        style={canvasStyle}
-      >
-        {/* Start / Game Over Overlay */}
+      {/* GAME AREA */}
+      <div onMouseMove={handleMove} style={canvasStyle}>
+        
+        {/* OVERLAY */}
         {!gameActive && (
           <div style={overlayStyle}>
             {gameOver ? (
               <>
-                <h1 style={{ color: '#d32f2f', fontSize: '48px' }}>OH NO!</h1>
-                <p style={{ fontSize: '20px', fontWeight: 'bold' }}>The carrot hit the grass!</p>
-                <div style={{ fontSize: '60px', margin: '20px 0' }}>🐴💤</div>
+                <h1>💀 Game Over</h1>
+                <p>Try again!</p>
               </>
             ) : (
               <>
-                <div style={{ fontSize: '100px', marginBottom: '10px' }}>🐴</div>
-                <h1 style={{ color: '#5D4037' }}>Carrot Catch!</h1>
-                <p>Don't let the snacks hit the ground!</p>
+                <h1>🐴 Carrot Catch</h1>
+                <p>Move your mouse to catch carrots!</p>
               </>
             )}
+
             <button onClick={startGame} style={playButtonStyle}>
-              {gameOver ? "TRY AGAIN" : "START GAME"}
+              {gameOver ? "TRY AGAIN" : "START"}
             </button>
           </div>
         )}
 
-        {/* Game Sprites */}
+        {/* SPRITES */}
         {gameActive && (
           <>
-            <div style={carrotSprite(carrot.x, carrot.y)}>🥕</div>
-            <div style={horseSprite(horseX)}>🐴</div>
+            <div style={carrotStyle(carrot.x, carrot.y)}>🥕</div>
+            <div style={horseStyle(horseX.current)}>🐴</div>
           </>
         )}
+
       </div>
 
+      {/* FOOTER */}
       <div style={footerStyle}>
-        <p><strong>HOW TO PLAY:</strong> Move your mouse to catch the carrots! 🥕</p>
+        Move your mouse to control the horse 🐎
       </div>
+
     </div>
   );
 }
 
-// --- STYLES (Kid Friendly & Sleek) ---
+/* 🎨 STYLES */
 
 const containerStyle = {
   height: '100vh',
-  backgroundColor: '#FFF9C4', // Soft Yellow
   display: 'flex',
   flexDirection: 'column',
-  fontFamily: '"Comic Sans MS", cursive, sans-serif',
-  overflow: 'hidden',
+  background: '#FFF9C4'
 };
 
 const headerStyle = {
-  padding: '15px 30px',
+  padding: '15px',
   display: 'flex',
   justifyContent: 'space-between',
-  alignItems: 'center',
-  backgroundColor: 'white',
-  boxShadow: '0 5px 0px #FDD835',
-  zIndex: 10
+  background: 'white'
 };
 
 const exitButtonStyle = {
-  backgroundColor: '#FF5252',
+  background: 'red',
   color: 'white',
-  padding: '10px 20px',
-  borderRadius: '15px',
-  textDecoration: 'none',
-  fontWeight: 'bold',
-  boxShadow: '0 4px 0px #D32F2F'
+  padding: '8px 15px',
+  borderRadius: '10px',
+  textDecoration: 'none'
 };
 
 const statContainer = { textAlign: 'right' };
-const scoreText = { fontSize: '24px', fontWeight: '900', color: '#F57C00' };
-const highScoreText = { fontSize: '12px', color: '#795548', fontWeight: 'bold' };
+const scoreText = { fontSize: '20px', color: 'orange' };
+const highScoreText = { fontSize: '12px' };
 
 const canvasStyle = {
   flex: 1,
-  position: 'relative',
   margin: '20px',
-  backgroundColor: '#A5D6A7', // Green Grass
-  borderRadius: '40px',
-  border: '10px solid white',
-  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
-  cursor: 'none',
-  overflow: 'hidden'
+  background: '#A5D6A7',
+  borderRadius: '30px',
+  position: 'relative',
+  overflow: 'hidden',
+  cursor: 'none'
 };
 
 const overlayStyle = {
   position: 'absolute',
   inset: 0,
-  backgroundColor: 'rgba(255,255,255,0.85)',
+  background: 'rgba(255,255,255,0.85)',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 10,
-  textAlign: 'center'
+  justifyContent: 'center'
 };
 
 const playButtonStyle = {
-  padding: '20px 50px',
-  fontSize: '24px',
-  fontWeight: '900',
-  backgroundColor: '#4CAF50',
-  color: 'white',
+  padding: '15px 40px',
+  fontSize: '20px',
+  borderRadius: '20px',
   border: 'none',
-  borderRadius: '30px',
-  cursor: 'pointer',
-  boxShadow: '0 8px 0px #2E7D32',
-  marginTop: '20px'
+  background: 'green',
+  color: 'white',
+  cursor: 'pointer'
 };
 
-const carrotSprite = (x, y) => ({
+const carrotStyle = (x, y) => ({
   position: 'absolute',
   left: `${x}%`,
   top: `${y}%`,
-  fontSize: '60px',
-  transform: 'translateX(-50%)',
-  zIndex: 5
+  fontSize: '50px',
+  transform: 'translateX(-50%)'
 });
 
-const horseSprite = (x) => ({
+const horseStyle = (x) => ({
   position: 'absolute',
   left: `${x}%`,
   bottom: '10%',
-  fontSize: '90px',
-  transform: 'translateX(-50%)',
-  transition: 'left 0.1s ease-out',
-  zIndex: 6
+  fontSize: '80px',
+  transform: 'translateX(-50%)'
 });
 
 const footerStyle = {
-  padding: '10px',
   textAlign: 'center',
-  color: '#5D4037',
-  fontSize: '14px'
+  padding: '10px'
 };
 
 export default GameMode;
