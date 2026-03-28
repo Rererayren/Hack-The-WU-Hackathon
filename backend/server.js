@@ -6,45 +6,43 @@ import cors from 'cors';
 dotenv.config();
 const app = express();
 app.use(cors());
-app.use(express.json());
+// IMPORTANT: Increased limit for webcam/image data
+app.use(express.json({ limit: '10mb' })); 
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// --- HACKATHON STUDY DATA ---
-// You can paste text here, or later, read from a file.
-const STUDY_CONTEXT = `
-  Topic: Biology 101 - Cell Division
-  - Mitosis: Results in 2 identical daughter cells. Phases: Prophase, Metaphase, Anaphase, Telophase.
-  - Meiosis: Results in 4 unique daughter cells (gametes).
-  - Key Term: Cytokinesis is the final physical split of the cell.
-`;
-
 app.post('/api/chat', async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, image, mode } = req.body;
+    
+    // Custom prompts for different buttons
+    const prompts = {
+      quiz: "Generate 3 multiple choice questions based on the provided material. Format: Question, then A/B/C/D. List the answer key at the end.",
+      detect: "Look at this webcam frame. Is the student's hand or a tool (like a pen) touching or pointing at something specific? Explain what they are interacting with.",
+      chat: prompt || "Analyze these study materials."
+    };
+
+    let parts = [{ text: prompts[mode] || prompts.chat }];
+
+    if (image) {
+      // Clean the Base64 string from the frontend
+      const base64Data = image.split(",")[1];
+      const mimeType = image.split(";")[0].split(":")[1];
+      parts.push({ inlineData: { data: base64Data, mimeType: mimeType } });
+    }
 
     const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      // 1. PERSONA: Tells the AI how to act
-      systemInstruction: `You are the AI-Study-Companion. 
-        You are helpful, encouraging, and explain complex topics simply. 
-        Always use bullet points for lists. 
-        If the user asks something irrelevant, politely bring them back to studying.`,
-      
-      // 2. KNOWLEDGE: Combines your study notes with the user's question
-      contents: [
-        { 
-          role: 'user', 
-          parts: [{ text: `Context information: ${STUDY_CONTEXT}\n\nUser Question: ${prompt}` }] 
-        }
-      ],
+      model: 'gemini-2.5-flash-lite', 
+      systemInstruction: "You are a professional Study Companion. You help students by explaining diagrams, generating quizzes, and detecting what they are pointing at in their books via webcam.",
+      contents: [{ role: 'user', parts: parts }],
     });
 
     res.json({ text: result.text });
   } catch (error) {
-    console.error("Gemini Error:", error);
-    res.status(500).json({ error: "API Error", details: error.message });
+    console.error("Backend Error:", error);
+    res.status(500).json({ error: "API Failure", details: error.message });
   }
 });
 
-app.listen(5000, () => console.log(`🚀 Study Companion Engine Running on 5000`));
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Study Engine Live on ${PORT}`));
