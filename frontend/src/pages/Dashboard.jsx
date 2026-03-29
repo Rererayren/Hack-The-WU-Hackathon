@@ -1,285 +1,273 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import ReactMarkdown from 'react-markdown';
-import { jsPDF } from "jspdf";
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
-function Dashboard() {
-  const [prompt, setPrompt] = useState('');
-  const [response, setResponse] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [image, setImage] = useState(null);
+const categories = [
+  { title: 'SAFETY',        to: '/safety',  icon: '🛡️', badge: 'Keep me safe!',   bg: '#FFF0F0', ring: '#FF5252', shadow: '#FFAAAA', bubble: '#FFCDD2', text: '#C62828', badgeBg: '#FFCDD2', badgeText: '#B71C1C', delay: '0s'   },
+  { title: 'HORNS',         to: '/horns',   icon: '🎺', badge: 'Toot toot! 📯',   bg: '#FFF5E8', ring: '#FB8C00', shadow: '#FFCC80', bubble: '#FFE0B2', text: '#E65100', badgeBg: '#FFE0B2', badgeText: '#BF360C', delay: '.4s'  },
+  { title: 'MINIGAMES',     to: '/game',    icon: '🎮', badge: "Let's play! 🕹️",  bg: '#F0FFF4', ring: '#43A047', shadow: '#A5D6A7', bubble: '#C8E6C9', text: '#1B5E20', badgeBg: '#C8E6C9', badgeText: '#1B5E20', delay: '.8s'  },
+  { title: 'WALKIE TALKIES',to: '/themes',  icon: '📻', badge: 'Chat away! 💬',   bg: '#F5F0FF', ring: '#8E24AA', shadow: '#CE93D8', bubble: '#E1BEE7', text: '#4A148C', badgeBg: '#E1BEE7', badgeText: '#4A148C', delay: '1.2s' },
+  { title: 'MAP',           to: '/map',     icon: '🗺️', badge: 'Explore! 🧭',    bg: '#EEF6FF', ring: '#1E88E5', shadow: '#90CAF9', bubble: '#BBDEFB', text: '#0D47A1', badgeBg: '#BBDEFB', badgeText: '#0D47A1', delay: '1.6s' },
+];
 
-  // --- AI LOGIC ---
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setImage(reader.result);
-      reader.readAsDataURL(file);
-    }
-  };
+const STAR_COLORS = ['#FF8A80','#FFCA28','#69F0AE','#80D8FF','#B388FF','#FF80AB','#CCF9B0','#FFAB40'];
 
-  const callAI = async (mode = 'chat') => {
-    if (!prompt && !image) return alert("Please enter a question or upload a photo!");
-    setLoading(true);
-    setResponse(mode === 'quiz' ? '🧠 Preparing your quiz...' : 'Thinking...');
-    
-    try {
-      const res = await axios.post('http://localhost:5000/api/chat', { 
-        prompt, image, mode 
-      });
-      setResponse(res.data.text);
-    } catch (err) {
-      setResponse("❌ Connection Error. Is your backend server running?");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveAsPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text("Roadie Study Session", 10, 10);
-    doc.setFontSize(12);
-    doc.text(doc.splitTextToSize(response.replace(/[#*`]/g, ''), 180), 10, 20);
-    doc.save("roadie-notes.pdf");
-  };
-
-  // --- CATEGORY CONFIGURATION ---
-  const categories = [
-    { title: "Collision", to: "/safety", icon: "🛡️", color: "#FF8A65" },
-    { title: "Horns", to: "/horns", icon: "🎺", color: "#BA68C8" },
-    { title: "Discover", to: "/discover", icon: "🔍", color: "#4FC3F7" },
-    { title: "Minigames", to: "/game", icon: "🎮", color: "#81C784" }, // Fixed Path
-    { title: "Themes", to: "/themes", icon: "🎨", color: "#FFD54F" },
-    { title: "Map", to: "/map", icon: "🗺️", color: "#90A4AE" },
-  ];
-
-  return (
-    <div style={containerStyle}>
-      <div style={contentWrapper}>
-        
-        {/* Header Section */}
-        <header style={headerStyle}>
-          <h1 style={titleStyle}>Roadie Dashboard</h1>
-          <p style={subtitleStyle}>Interactive Learning + Fun Tools</p>
-        </header>
-
-        {/* Apps Grid */}
-        <section style={gridStyle}>
-          {categories.map((cat) => (
-            <Link key={cat.title} to={cat.to} style={cardStyle(cat.color)}>
-              <div style={iconStyle}>{cat.icon}</div>
-              <div style={cardTitleStyle}>{cat.title}</div>
-            </Link>
-          ))}
-        </section>
-
-        {/* AI Assistant Section */}
-        <section style={aiSectionStyle}>
-          <h2 style={sectionTitleStyle}>✨ AI Study Companion</h2>
-          
-          <div style={uploadBoxStyle}>
-            <label style={uploadLabel}>
-              {image ? "📸 Image Ready!" : "📁 Upload a Study Image"}
-              <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
-            </label>
-            {image && <img src={image} alt="Preview" style={previewImageStyle} />}
-          </div>
-
-          <div style={inputGroupStyle}>
-            <input
-              type="text"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ask your Roadie assistant a question..."
-              style={inputStyle}
-            />
-            <button 
-              onClick={() => callAI('chat')} 
-              disabled={loading} 
-              style={askButtonStyle(loading)}
-            >
-              {loading ? "..." : "Ask"}
-            </button>
-          </div>
-
-          <div style={actionButtonGroup}>
-            <button onClick={() => callAI('quiz')} style={secondaryButtonStyle}>📝 Generate Quiz</button>
-            <button onClick={saveAsPDF} style={secondaryButtonStyle}>📥 Save as PDF</button>
-          </div>
-
-          <div style={responseAreaStyle}>
-            <ReactMarkdown>
-              {response || "Your AI notes, quizzes, and answers will appear here. Try uploading a diagram or asking a math question!"}
-            </ReactMarkdown>
-          </div>
-        </section>
-
-      </div>
-    </div>
-  );
+function generateStars(count = 30) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    size: Math.random() * 12 + 6,
+    color: STAR_COLORS[i % STAR_COLORS.length],
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    animDelay: `${(Math.random() * 2.4).toFixed(2)}s`,
+    animDuration: `${(1.8 + Math.random() * 2).toFixed(2)}s`,
+  }));
 }
 
-// --- STYLES ---
+const stars = generateStars();
 
-const containerStyle = {
-  minHeight: '100vh',
-  backgroundColor: '#f8f9fa',
-  padding: '40px 20px',
-  fontFamily: '"Segoe UI", Roboto, Helvetica, sans-serif',
-};
+export default function Dashboard() {
+  const cardRefs = useRef([]);
 
-const contentWrapper = {
-  maxWidth: '900px',
-  margin: '0 auto',
-};
+  const handleCardClick = (i) => {
+    const el = cardRefs.current[i];
+    if (!el) return;
+    el.style.transform = 'scale(1.15) rotate(3deg)';
+    setTimeout(() => { el.style.transform = ''; }, 300);
+  };
 
-const headerStyle = {
-  marginBottom: '40px',
-  textAlign: 'center',
-};
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap');
 
-const titleStyle = {
-  fontSize: '42px',
-  fontWeight: '900',
-  color: '#2c3e50',
-  margin: '0 0 10px 0',
-  letterSpacing: '-1px',
-};
+        .pd-wrap {
+          background: #FFF6E0;
+          min-height: 100vh;
+          padding: 36px 20px 48px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          font-family: 'Fredoka One', 'Nunito', sans-serif;
+          overflow: hidden;
+        }
+        .pd-scene {
+          position: relative;
+          width: 100%;
+          max-width: 880px;
+        }
+        .pd-stars {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .pd-star {
+          position: absolute;
+          border-radius: 50%;
+          animation: pd-twinkle var(--dur) ease-in-out infinite var(--delay);
+        }
+        @keyframes pd-twinkle {
+          0%, 100% { opacity: .9; transform: scale(1); }
+          50%       { opacity: .3; transform: scale(.5); }
+        }
+        .pd-hdr {
+          text-align: center;
+          margin-bottom: 40px;
+          position: relative;
+          z-index: 1;
+        }
+        .pd-pony {
+          font-size: 72px;
+          display: inline-block;
+          animation: pd-gallop 1.1s ease-in-out infinite alternate;
+          transform-origin: bottom center;
+        }
+        @keyframes pd-gallop {
+          0%   { transform: rotate(-6deg) translateY(0); }
+          100% { transform: rotate(6deg)  translateY(-8px); }
+        }
+        .pd-title {
+          font-size: 52px;
+          font-weight: 900;
+          color: #5C3317;
+          letter-spacing: 2px;
+          text-shadow: 4px 4px 0 #fff, 6px 6px 0 #F8B84E;
+          line-height: 1.1;
+          margin: 0;
+        }
+        .pd-sub {
+          font-size: 22px;
+          color: #9B5E28;
+          margin-top: 8px;
+          font-weight: 700;
+        }
+        .pd-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 28px;
+          position: relative;
+          z-index: 1;
+          width: 100%;
+        }
+        .pd-card {
+          border-radius: 40% 60% 55% 45% / 45% 55% 60% 40%;
+          padding: 32px 20px 28px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          cursor: pointer;
+          transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s;
+          position: relative;
+          overflow: hidden;
+          text-decoration: none;
+        }
+        .pd-card:hover  { transform: scale(1.07) rotate(-1deg); }
+        .pd-card:active { transform: scale(.95)  rotate(1deg);  }
+        .pd-bubble {
+          width: 110px;
+          height: 110px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 16px;
+          position: relative;
+          flex-shrink: 0;
+        }
+        .pd-bubble::after {
+          content: '✦ ✦ ✦';
+          position: absolute;
+          top: 4px; right: 4px;
+          font-size: 9px;
+          color: rgba(0,0,0,.15);
+          letter-spacing: 2px;
+          pointer-events: none;
+        }
+        .pd-icon {
+          font-size: 54px;
+          line-height: 1;
+          display: block;
+          animation: pd-wobble 2.8s ease-in-out infinite var(--icon-delay);
+        }
+        @keyframes pd-wobble {
+          0%, 100% { transform: rotate(-8deg); }
+          50%       { transform: rotate(8deg);  }
+        }
+        .pd-label {
+          font-size: 26px;
+          font-weight: 900;
+          letter-spacing: .5px;
+          font-family: 'Fredoka One', 'Nunito', sans-serif;
+        }
+        .pd-badge {
+          margin-top: 8px;
+          padding: 4px 14px;
+          border-radius: 40px;
+          font-size: 14px;
+          font-weight: 700;
+        }
+        .pd-clouds {
+          display: flex;
+          justify-content: center;
+          gap: 24px;
+          margin-top: 44px;
+          position: relative;
+          z-index: 1;
+        }
+        .pd-cloud {
+          height: 30px;
+          border-radius: 60px;
+          animation: pd-float 3s ease-in-out infinite;
+        }
+        .pd-cloud:nth-child(2) { animation-delay: .6s;  }
+        .pd-cloud:nth-child(3) { animation-delay: 1.2s; }
+        @keyframes pd-float {
+          0%, 100% { transform: translateY(0);    }
+          50%       { transform: translateY(-10px); }
+        }
+        .pd-ground {
+          height: 16px;
+          border-radius: 40px;
+          margin-top: 16px;
+          background: repeating-linear-gradient(90deg, #8BC34A 0 20px, #7CB342 20px 40px);
+          position: relative;
+          z-index: 1;
+        }
+      `}</style>
 
-const subtitleStyle = {
-  fontSize: '18px',
-  color: '#7f8c8d',
-  margin: 0,
-};
+      <div className="pd-wrap">
+        <div className="pd-scene">
 
-const gridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-  gap: '20px',
-  marginBottom: '50px',
-};
+          {/* Floating stars */}
+          <div className="pd-stars">
+            {stars.map(s => (
+              <div
+                key={s.id}
+                className="pd-star"
+                style={{
+                  width: s.size,
+                  height: s.size,
+                  background: s.color,
+                  left: s.left,
+                  top: s.top,
+                  '--delay': s.animDelay,
+                  '--dur': s.animDuration,
+                }}
+              />
+            ))}
+          </div>
 
-const cardStyle = (color) => ({
-  textDecoration: 'none',
-  padding: '30px',
-  backgroundColor: '#fff',
-  borderRadius: '24px',
-  border: '1px solid #eee',
-  textAlign: 'center',
-  transition: 'transform 0.2s, box-shadow 0.2s',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  boxShadow: '0 4px 6px rgba(0,0,0,0.02)',
-  borderBottom: `6px solid ${color}`,
-});
+          {/* Header */}
+          <header className="pd-hdr">
+            <span className="pd-pony">🐴</span>
+            <h1 className="pd-title">Pony Dashboard</h1>
+            <p className="pd-sub">🌟 Pick your adventure! 🌟</p>
+          </header>
 
-const iconStyle = {
-  fontSize: '40px',
-  marginBottom: '10px',
-};
+          {/* Cards */}
+          <div className="pd-grid">
+            {categories.map((cat, i) => (
+              <Link
+                key={cat.title}
+                to={cat.to}
+                className="pd-card"
+                ref={el => cardRefs.current[i] = el}
+                onClick={() => handleCardClick(i)}
+                style={{
+                  background: cat.bg,
+                  boxShadow: `0 12px 0 ${cat.shadow}, 0 0 0 6px ${cat.ring}`,
+                }}
+              >
+                <div className="pd-bubble" style={{ background: cat.bubble }}>
+                  <span
+                    className="pd-icon"
+                    style={{ '--icon-delay': cat.delay }}
+                  >
+                    {cat.icon}
+                  </span>
+                </div>
+                <div className="pd-label" style={{ color: cat.text }}>{cat.title}</div>
+                <div
+                  className="pd-badge"
+                  style={{ background: cat.badgeBg, color: cat.badgeText }}
+                >
+                  {cat.badge}
+                </div>
+              </Link>
+            ))}
+          </div>
 
-const cardTitleStyle = {
-  fontSize: '20px',
-  fontWeight: 'bold',
-  color: '#34495e',
-};
+          {/* Ground / clouds */}
+          <div className="pd-clouds">
+            <div className="pd-cloud" style={{ width: 60,  background: '#FFF9C4' }} />
+            <div className="pd-cloud" style={{ width: 90,  background: '#E3F2FD' }} />
+            <div className="pd-cloud" style={{ width: 60,  background: '#FCE4EC' }} />
+          </div>
+          <div className="pd-ground" />
 
-const aiSectionStyle = {
-  backgroundColor: '#fff',
-  padding: '40px',
-  borderRadius: '32px',
-  boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
-  border: '1px solid #f1f1f1',
-};
-
-const sectionTitleStyle = {
-  fontSize: '24px',
-  fontWeight: '800',
-  color: '#1a73e8',
-  marginTop: 0,
-  marginBottom: '25px',
-};
-
-const uploadBoxStyle = {
-  marginBottom: '20px',
-  textAlign: 'center',
-};
-
-const uploadLabel = {
-  display: 'inline-block',
-  padding: '12px 24px',
-  backgroundColor: '#f1f3f4',
-  color: '#5f6368',
-  borderRadius: '12px',
-  cursor: 'pointer',
-  fontWeight: '600',
-  border: '2px dashed #dadce0',
-};
-
-const previewImageStyle = {
-  display: 'block',
-  width: '100%',
-  maxWidth: '300px',
-  margin: '15px auto 0',
-  borderRadius: '12px',
-  maxHeight: '200px',
-  objectFit: 'contain',
-};
-
-const inputGroupStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '15px',
-};
-
-const inputStyle = {
-  flex: 1,
-  padding: '16px',
-  borderRadius: '16px',
-  border: '1px solid #dadce0',
-  fontSize: '16px',
-  outline: 'none',
-};
-
-const askButtonStyle = (loading) => ({
-  padding: '0 30px',
-  backgroundColor: loading ? '#ccc' : '#1a73e8',
-  color: '#fff',
-  border: 'none',
-  borderRadius: '16px',
-  fontWeight: 'bold',
-  cursor: loading ? 'default' : 'pointer',
-  transition: 'background 0.2s',
-});
-
-const actionButtonGroup = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '30px',
-};
-
-const secondaryButtonStyle = {
-  flex: 1,
-  padding: '12px',
-  backgroundColor: '#f8f9fa',
-  color: '#3c4043',
-  border: '1px solid #dadce0',
-  borderRadius: '12px',
-  fontWeight: '600',
-  cursor: 'pointer',
-};
-
-const responseAreaStyle = {
-  padding: '25px',
-  backgroundColor: '#fdfdfd',
-  borderRadius: '20px',
-  border: '1px solid #f1f1f1',
-  color: '#2c3e50',
-  lineHeight: '1.6',
-};
-
-export default Dashboard;
+        </div>
+      </div>
+    </>
+  );
+}
