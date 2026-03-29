@@ -1,48 +1,40 @@
 import express from 'express';
-import { GoogleGenAI } from '@google/genai';
-import dotenv from 'dotenv';
 import cors from 'cors';
+import { ExpressPeerServer } from 'peer';
+import dotenv from 'dotenv';
 
 dotenv.config();
+
 const app = express();
 app.use(cors());
-// IMPORTANT: Increased limit for webcam/image data
-app.use(express.json({ limit: '10mb' })); 
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { prompt, image, mode } = req.body;
-    
-    // Custom prompts for different buttons
-    const prompts = {
-      quiz: "Generate 3 multiple choice questions based on the provided material. Format: Question, then A/B/C/D. List the answer key at the end.",
-      detect: "Look at this webcam frame. Is the student's hand or a tool (like a pen) touching or pointing at something specific? Explain what they are interacting with.",
-      chat: prompt || "Analyze these study materials."
-    };
-
-    let parts = [{ text: prompts[mode] || prompts.chat }];
-
-    if (image) {
-      // Clean the Base64 string from the frontend
-      const base64Data = image.split(",")[1];
-      const mimeType = image.split(";")[0].split(":")[1];
-      parts.push({ inlineData: { data: base64Data, mimeType: mimeType } });
-    }
-
-    const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-lite', 
-      systemInstruction: "You are a professional Study Companion. You help students by explaining diagrams, generating quizzes, and detecting what they are pointing at in their books via webcam.",
-      contents: [{ role: 'user', parts: parts }],
-    });
-
-    res.json({ text: result.text });
-  } catch (error) {
-    console.error("Backend Error:", error);
-    res.status(500).json({ error: "API Failure", details: error.message });
-  }
-});
+app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Study Engine Live on ${PORT}`));
+
+// 1. Basic Health Check Route
+app.get('/', (req, res) => {
+  res.json({ message: "🚗 Roadie Telemetry Server is Live!" });
+});
+
+// 2. Start the HTTP Server
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Roadie Engine Live on ${PORT}`);
+  console.log(`📡 PeerJS Signaling Server running at http://localhost:${PORT}/peerjs`);
+});
+
+// 3. ✨ THE MISSING RADIO TOWER ✨ Attach the Private PeerJS Server
+const peerServer = ExpressPeerServer(server, {
+  debug: true,
+  path: '/'
+});
+
+app.use('/peerjs', peerServer);
+
+// 4. Live Hackathon Logging
+peerServer.on('connection', (client) => {
+  console.log(`🟢 DEVICE CONNECTED: ${client.getId()}`);
+});
+
+peerServer.on('disconnect', (client) => {
+  console.log(`🔴 DEVICE DISCONNECTED: ${client.getId()}`);
+});

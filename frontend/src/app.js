@@ -7,6 +7,8 @@ import GameMode from './pages/GameMode';
 import MapPage from './pages/MapPage';
 import SoundBoard from './pages/SoundBoard';
 import MusicPlayer from './components/MusicPlayer';
+import WalkieTalkie from './pages/WalkieTalkie';
+
 function App() {
   return (
     <Router>
@@ -17,6 +19,7 @@ function App() {
         <Route path="/game" element={<GameMode />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/horns" element={<SoundBoard />} />
+        <Route path="/themes" element={<WalkieTalkie />} />
       </Routes>
     </Router>
   );

@@ -3,11 +3,18 @@ import React, { useState, useRef, useEffect } from 'react';
 function MusicPlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
+  
+  // Track the current animation so we can cancel it if they mash the button
+  const fadeAnimationRef = useRef(null);
 
   useEffect(() => {
-    // --- SMOOTH FADER ENGINE ---
+    // --- SMOOTH FADER ENGINE (Now Crash-Proof!) ---
     const fadeVolume = (targetVolume, durationMs) => {
       if (!audioRef.current) return;
+      
+      // 1. Cancel any fading that is currently happening
+      if (fadeAnimationRef.current) cancelAnimationFrame(fadeAnimationRef.current);
+
       const audio = audioRef.current;
       const startVol = audio.volume;
       const volChange = targetVolume - startVol;
@@ -17,29 +24,33 @@ function MusicPlayer() {
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / durationMs, 1);
         
-        // Slide the volume smoothly based on how much time has passed
-        audio.volume = startVol + (volChange * progress);
+        // Calculate the new volume
+        let calculatedVolume = startVol + (volChange * progress);
         
-        // Keep animating until we hit the target time
-        if (progress < 1) requestAnimationFrame(animate);
+        // ✨ THE FIX: Clamp the volume strictly between 0.0 and 1.0!
+        calculatedVolume = Math.max(0, Math.min(1, calculatedVolume));
+        
+        // Apply the safe volume
+        audio.volume = calculatedVolume;
+        
+        if (progress < 1) {
+          fadeAnimationRef.current = requestAnimationFrame(animate);
+        }
       };
       
-      requestAnimationFrame(animate);
+      fadeAnimationRef.current = requestAnimationFrame(animate);
     };
 
-    // Fast fade out to 2% volume (takes 300 milliseconds)
     const duckAudio = () => fadeVolume(0.02, 300); 
-    
-    // Slow, gentle fade back in to 100% volume (takes 800 milliseconds)
     const unduckAudio = () => fadeVolume(1.0, 800);
 
-    // Listen for the custom "Pony" events from your SoundBoard
     window.addEventListener('pony-speak-start', duckAudio);
     window.addEventListener('pony-speak-end', unduckAudio);
 
     return () => {
       window.removeEventListener('pony-speak-start', duckAudio);
       window.removeEventListener('pony-speak-end', unduckAudio);
+      if (fadeAnimationRef.current) cancelAnimationFrame(fadeAnimationRef.current);
     };
   }, []);
 

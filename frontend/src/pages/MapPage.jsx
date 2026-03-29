@@ -1,8 +1,27 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 
 const DEFAULT_CENTER = { lat: 37.6872, lng: -97.3301 };
 const DEFAULT_ZOOM = 17;
 const API_KEY = "AIzaSyALghiW3PJRGA4adIEFiF0qzG1aNLoPyfo";
+
+// ─────────────────────────────────────────────
+// HELPERS & CONSTANTS
+// ─────────────────────────────────────────────
+
+function getDistanceInMeters(p1, p2) {
+  const R = 6371e3; // Earth radius in meters
+  const rad = Math.PI / 180;
+  const lat1 = p1.lat * rad, lat2 = p2.lat * rad;
+  const deltaLat = (p2.lat - p1.lat) * rad;
+  const deltaLng = (p2.lng - p1.lng) * rad;
+
+  const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+            Math.cos(lat1) * Math.cos(lat2) *
+            Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c; 
+}
 
 function drawCarIcon(pixelSize) {
   const W = pixelSize;
@@ -77,51 +96,36 @@ const CARTOON_STYLE = [
   { featureType: "road", elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }, { weight: 3 }] },
 ];
 
-// Cartoon horse SVG drawn with canvas
 function HorseSVG({ flip = false, size = 90 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"
       style={{ transform: flip ? "scaleX(-1)" : "none", display: "block" }}>
-      {/* Body */}
       <ellipse cx="60" cy="75" rx="32" ry="22" fill="#c8813a" stroke="#7a4a1a" strokeWidth="3"/>
-      {/* Neck */}
       <path d="M72 60 Q82 45 78 32" stroke="#c8813a" strokeWidth="16" strokeLinecap="round" fill="none"/>
       <path d="M72 60 Q82 45 78 32" stroke="#7a4a1a" strokeWidth="3" strokeLinecap="round" fill="none"/>
-      {/* Head */}
       <ellipse cx="76" cy="28" rx="14" ry="11" fill="#c8813a" stroke="#7a4a1a" strokeWidth="3"/>
-      {/* Snout */}
       <ellipse cx="84" cy="33" rx="8" ry="6" fill="#e8a87c" stroke="#7a4a1a" strokeWidth="2"/>
-      {/* Nostril */}
       <circle cx="86" cy="35" r="2" fill="#7a4a1a"/>
-      {/* Eye */}
       <circle cx="73" cy="24" r="4" fill="white" stroke="#7a4a1a" strokeWidth="1.5"/>
       <circle cx="74" cy="24" r="2" fill="#2c1a08"/>
       <circle cx="75" cy="23" r="0.8" fill="white"/>
-      {/* Ear */}
       <path d="M68 18 Q70 10 75 14 Q71 18 68 18Z" fill="#c8813a" stroke="#7a4a1a" strokeWidth="1.5"/>
-      {/* Mane */}
       <path d="M70 22 Q65 30 67 40 Q63 32 66 22 Q62 28 65 38 Q60 28 63 18" stroke="#7a4a1a" strokeWidth="4" strokeLinecap="round" fill="none"/>
-      {/* Legs */}
       <rect x="38" y="88" width="10" height="22" rx="5" fill="#c8813a" stroke="#7a4a1a" strokeWidth="2"/>
       <rect x="52" y="90" width="10" height="20" rx="5" fill="#c8813a" stroke="#7a4a1a" strokeWidth="2"/>
       <rect x="66" y="90" width="10" height="20" rx="5" fill="#c8813a" stroke="#7a4a1a" strokeWidth="2"/>
       <rect x="80" y="88" width="10" height="22" rx="5" fill="#c8813a" stroke="#7a4a1a" strokeWidth="2"/>
-      {/* Hooves */}
       <rect x="37" y="107" width="12" height="5" rx="2.5" fill="#4a2e0a"/>
       <rect x="51" y="107" width="12" height="5" rx="2.5" fill="#4a2e0a"/>
       <rect x="65" y="107" width="12" height="5" rx="2.5" fill="#4a2e0a"/>
       <rect x="79" y="107" width="12" height="5" rx="2.5" fill="#4a2e0a"/>
-      {/* Tail */}
       <path d="M30 70 Q18 80 22 95 Q26 108 20 112" stroke="#7a4a1a" strokeWidth="6" strokeLinecap="round" fill="none"/>
-      {/* Belly spot */}
       <ellipse cx="55" cy="82" rx="12" ry="8" fill="#e8a87c" opacity="0.5"/>
-      {/* Cheek blush */}
       <ellipse cx="80" cy="30" rx="4" ry="3" fill="#e07a5f" opacity="0.4"/>
     </svg>
   );
 }
 
-// Grass tuft SVG for margins
 function GrassTuft({ color = "#56c271" }) {
   return (
     <svg width="40" height="28" viewBox="0 0 40 28" xmlns="http://www.w3.org/2000/svg">
@@ -133,7 +137,6 @@ function GrassTuft({ color = "#56c271" }) {
   );
 }
 
-// Flower for margins
 function Flower({ color = "#ff6b9d" }) {
   return (
     <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -150,13 +153,24 @@ function Flower({ color = "#ff6b9d" }) {
   );
 }
 
+// ─────────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────────
+
 export default function MapPage() {
   const mapDivRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
+  const circleRef = useRef(null); 
+  const watchIdRef = useRef(null); 
+
   const [position, setPosition] = useState(DEFAULT_CENTER);
   const [locationFound, setLocationFound] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  const [speedMph, setSpeedMph] = useState(0);
+  const [safeZone, setSafeZone] = useState(null); 
+  const [isWarning, setIsWarning] = useState(false);
 
   function buildMarkerIcon(zoom, lat) {
     const w = carPixelWidth(zoom, lat);
@@ -180,36 +194,92 @@ export default function MapPage() {
     });
     const icon = buildMarkerIcon(DEFAULT_ZOOM, center.lat);
     const marker = new google.maps.Marker({ position: center, map, icon, title: "You are here!", optimized: false });
+    
     map.addListener("zoom_changed", () => {
       marker.setIcon(buildMarkerIcon(map.getZoom(), marker.getPosition().lat()));
     });
-    mapRef.current = map; markerRef.current = marker;
+    
+    mapRef.current = map; 
+    markerRef.current = marker;
   }
 
   function flyToPosition(coords) {
     const map = mapRef.current; const marker = markerRef.current;
     if (!map || !marker) return;
-    map.panTo(coords); map.setZoom(DEFAULT_ZOOM);
+    map.panTo(coords); 
     marker.setPosition(coords);
-    marker.setIcon(buildMarkerIcon(DEFAULT_ZOOM, coords.lat));
+    marker.setIcon(buildMarkerIcon(map.getZoom(), coords.lat));
   }
 
-  function requestGPS() {
+  function startTracking() {
     if (!navigator.geolocation) return;
     setLoading(true);
-    navigator.geolocation.getCurrentPosition(
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setPosition(coords); setLocationFound(true); setLoading(false);
+        setPosition(coords);
+        setLocationFound(true);
+        setLoading(false);
         flyToPosition(coords);
+
+        const mph = Math.round((pos.coords.speed || 0) * 2.23694);
+        setSpeedMph(mph);
       },
-      () => setLoading(false),
-      { enableHighAccuracy: true, timeout: 10000 }
+      (err) => { console.error("GPS Error:", err); setLoading(false); },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
     );
   }
 
+  const toggleSafeZone = () => {
+    if (safeZone) {
+      setSafeZone(null); 
+      setIsWarning(false);
+    } else {
+      setSafeZone({ lat: position.lat, lng: position.lng, radius: 40 }); 
+    }
+  };
+
   useEffect(() => {
-    const onLoad = () => { initMap(DEFAULT_CENTER); requestGPS(); };
+    if (!mapRef.current) return;
+    if (safeZone) {
+      if (!circleRef.current) {
+        circleRef.current = new window.google.maps.Circle({
+          map: mapRef.current,
+          fillColor: '#22C55E', fillOpacity: 0.15,
+          strokeColor: '#15803D', strokeWeight: 3,
+          center: safeZone, radius: safeZone.radius
+        });
+      } else {
+        circleRef.current.setCenter(safeZone);
+        circleRef.current.setRadius(safeZone.radius);
+      }
+    } else if (circleRef.current) {
+      circleRef.current.setMap(null);
+      circleRef.current = null;
+    }
+  }, [safeZone]);
+
+  useEffect(() => {
+    if (safeZone && locationFound) {
+      const distance = getDistanceInMeters(position, safeZone);
+      
+      if (distance > safeZone.radius) {
+        if (!isWarning) {
+          setIsWarning(true);
+          const utterance = new SpeechSynthesisUtterance("Boundary reached! Please turn around!");
+          utterance.pitch = 1.2;
+          window.speechSynthesis.speak(utterance);
+          if ("vibrate" in navigator) navigator.vibrate([300, 100, 300, 100, 300]); 
+        }
+      } else {
+        setIsWarning(false); 
+      }
+    }
+  }, [position, safeZone, isWarning, locationFound]);
+
+  useEffect(() => {
+    const onLoad = () => { initMap(DEFAULT_CENTER); startTracking(); };
     if (window.google && window.google.maps) { onLoad(); return; }
     if (document.getElementById("gmaps-script")) {
       document.getElementById("gmaps-script").addEventListener("load", onLoad); return;
@@ -220,61 +290,41 @@ export default function MapPage() {
     script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&callback=__onGMapsLoad`;
     script.async = true; script.defer = true;
     document.head.appendChild(script);
+
+    return () => {
+      if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
   }, []);
 
   return (
-    <div style={{ background: "#78d87e", minHeight: "100vh", padding: "0", fontFamily: "'Comic Sans MS', 'Chalkboard SE', cursive" }}>
+    <div style={{ background: "#78d87e", minHeight: "100vh", padding: "0", fontFamily: "'Comic Sans MS', 'Chalkboard SE', cursive", display: "flex", flexDirection: "column" }}>
 
       {/* ===== BIG CUTE HEADER ===== */}
       <div style={{
         background: "linear-gradient(180deg, #56c271 0%, #3da85a 100%)",
-        borderBottom: "4px solid #2e7d32",
-        padding: "16px 24px 12px",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        position: "relative",
-        boxShadow: "0 4px 0 #2e7d32",
+        borderBottom: "4px solid #2e7d32", padding: "16px 24px 12px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        position: "relative", boxShadow: "0 4px 0 #2e7d32", zIndex: 10
       }}>
-        {/* Left horse */}
-        <div style={{ position: "absolute", left: "12px", bottom: 0, display: "flex", alignItems: "flex-end" }}>
-          <HorseSVG size={80} />
-        </div>
-
-        {/* Title block */}
+        <Link to="/" style={{ background: "#FFCA28", padding: "10px 20px", borderRadius: "20px", color: "#5a3e1b", fontWeight: 900, textDecoration: "none", boxShadow: "0 4px 0 #F57F17" }}>🏠 HOME</Link>
+        
         <div style={{ textAlign: "center", zIndex: 1 }}>
-          {/* Badge circle like PBS Kids */}
-          <div style={{
-            display: "inline-flex", flexDirection: "column", alignItems: "center",
-            background: "#f9e04b", borderRadius: "50%",
-            width: 110, height: 110, justifyContent: "center",
-            border: "5px solid #5a3e1b", boxShadow: "4px 4px 0 #5a3e1b",
-            marginBottom: "6px",
-          }}>
-            <div style={{ fontSize: "36px", lineHeight: 1 }}>🐴</div>
-            <div style={{ fontSize: "13px", fontWeight: 900, color: "#5a3e1b", lineHeight: 1.1, marginTop: "4px", letterSpacing: "-0.5px" }}>
-              ROADIE
-            </div>
-            <div style={{ fontSize: "10px", fontWeight: 700, color: "#5a3e1b", opacity: 0.8 }}>GPS</div>
-          </div>
-          <div style={{ fontSize: "11px", color: "#d4f0da", fontWeight: 700, letterSpacing: "1px" }}>
-            {loading ? "🔍 Finding you..." : locationFound ? "📍 You are here!" : "🗺️ Wichita, KS"}
+          <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", background: "#f9e04b", borderRadius: "50%", width: 90, height: 90, justifyContent: "center", border: "5px solid #5a3e1b", boxShadow: "4px 4px 0 #5a3e1b" }}>
+            <div style={{ fontSize: "30px", lineHeight: 1 }}>🐴</div>
+            <div style={{ fontSize: "11px", fontWeight: 900, color: "#5a3e1b", lineHeight: 1.1 }}>ROADIE</div>
           </div>
         </div>
-
-        {/* Right horse (flipped) */}
-        <div style={{ position: "absolute", right: "12px", bottom: 0, display: "flex", alignItems: "flex-end" }}>
-          <HorseSVG size={80} flip />
-        </div>
+        <div style={{ width: "80px" }}></div>
       </div>
 
-      {/* ===== MAIN LAYOUT: side margins + map ===== */}
-      <div style={{ display: "flex", alignItems: "stretch", padding: "0", gap: 0 }}>
-
+      {/* ===== MAIN LAYOUT ===== */}
+      <div style={{ display: "flex", flex: 1, alignItems: "stretch", padding: "0", gap: 0 }}>
+        
         {/* Left margin */}
         <div style={{
           width: "80px", flexShrink: 0, background: "#56c271",
           display: "flex", flexDirection: "column", alignItems: "center",
-          justifyContent: "space-around", padding: "16px 0",
-          borderRight: "3px solid #3da85a",
+          justifyContent: "space-around", padding: "16px 0", borderRight: "3px solid #3da85a"
         }}>
           <HorseSVG size={60} />
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "center" }}>
@@ -291,50 +341,73 @@ export default function MapPage() {
         </div>
 
         {/* Map + controls center */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "14px 10px" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "14px 10px", margin: "0 auto", maxWidth: "900px" }}>
 
-          {/* Status + re-center row */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-            <div style={{
-              flex: 1, padding: "6px 12px", borderRadius: "999px",
-              background: "#f9e04b", border: "2.5px solid #5a3e1b",
-              fontSize: "12px", fontWeight: 700, color: "#5a3e1b",
-              boxShadow: "2px 2px 0 #5a3e1b",
-            }}>
-              {locationFound
-                ? `📍 ${position.lat.toFixed(4)}°, ${position.lng.toFixed(4)}°`
-                : "📍 Enable location for live GPS"}
+          {/* Status + Controls row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, padding: "10px 12px", borderRadius: "999px", background: "#f9e04b", border: "2.5px solid #5a3e1b", fontSize: "14px", fontWeight: 900, color: "#5a3e1b", boxShadow: "2px 2px 0 #5a3e1b" }}>
+              {loading ? "🔍 Finding you..." : `📍 ${position.lat.toFixed(4)}°, ${position.lng.toFixed(4)}°`}
             </div>
-            <button onClick={requestGPS} disabled={loading} style={{
-              padding: "7px 16px", borderRadius: "999px", flexShrink: 0,
-              background: "#ff922b", border: "2.5px solid #5a3e1b",
-              fontSize: "12px", fontWeight: 700, color: "#ffffff",
-              boxShadow: "2px 2px 0 #5a3e1b",
-              cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1,
+            
+            <button onClick={toggleSafeZone} style={{
+              padding: "10px 16px", borderRadius: "999px",
+              background: safeZone ? "#EF4444" : "#8B5CF6", border: "2.5px solid #5a3e1b",
+              fontSize: "14px", fontWeight: 900, color: "#ffffff", boxShadow: "2px 2px 0 #5a3e1b", cursor: "pointer"
             }}>
-              {loading ? "⏳ …" : "🔄 Re-center"}
+              {safeZone ? "❌ Remove Fence" : "🛡️ Set Safe Zone"}
             </button>
           </div>
 
-          {/* Map */}
-          <div style={{
-            borderRadius: "16px", overflow: "hidden",
-            border: "4px solid #5a3e1b", boxShadow: "6px 6px 0 #5a3e1b", flex: 1,
-          }}>
-            <div ref={mapDivRef} style={{ width: "100%", height: "460px" }} />
-          </div>
+          {/* Map Container */}
+          <div style={{ position: "relative", borderRadius: "20px", overflow: "hidden", border: "5px solid #5a3e1b", boxShadow: "6px 6px 0 #5a3e1b", flex: 1, minHeight: "60vh", backgroundColor: "#e5e3df" }}>
+            
+            <div ref={mapDivRef} style={{ width: "100%", height: "100%" }} />
 
-          <p style={{ margin: "8px 0 0", fontSize: "10px", color: "#3da85a", textAlign: "center", fontFamily: "sans-serif" }}>
-            Google Maps • Roadie GPS • Car scales with zoom
-          </p>
+            {/* FLOATING SPEEDOMETER */}
+            <div style={{
+              position: "absolute", bottom: "20px", left: "20px",
+              width: "100px", height: "100px", borderRadius: "50%",
+              backgroundColor: "white", border: "6px solid #F97316",
+              boxShadow: "0 6px 15px rgba(0,0,0,0.3)",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 5
+            }}>
+              <span style={{ fontSize: "36px", fontWeight: "900", color: "#431407", lineHeight: "1" }}>{speedMph}</span>
+              <span style={{ fontSize: "14px", fontWeight: "bold", color: "#F97316" }}>MPH</span>
+            </div>
+
+            {/* WARNING OVERLAY */}
+            {isWarning && (
+              <div style={{
+                position: "absolute", inset: 0,
+                backgroundColor: "rgba(239, 68, 68, 0.85)", 
+                zIndex: 100, display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                animation: "pulseWarning 1s infinite alternate"
+              }}>
+                <div style={{ fontSize: "80px" }}>🛑</div>
+                <h1 style={{ color: "white", fontSize: "42px", fontWeight: "900", textAlign: "center", textShadow: "4px 4px 0 #991B1B", margin: "10px" }}>
+                  BOUNDARY REACHED!
+                </h1>
+                <h2 style={{ color: "#FEF08A", fontSize: "28px", fontWeight: "900", textShadow: "2px 2px 0 #991B1B" }}>
+                  Please turn around!
+                </h2>
+              </div>
+            )}
+            
+            <style>{`
+              @keyframes pulseWarning {
+                0% { background-color: rgba(239, 68, 68, 0.7); }
+                100% { background-color: rgba(239, 68, 68, 0.95); }
+              }
+            `}</style>
+          </div>
         </div>
 
         {/* Right margin */}
         <div style={{
           width: "80px", flexShrink: 0, background: "#56c271",
           display: "flex", flexDirection: "column", alignItems: "center",
-          justifyContent: "space-around", padding: "16px 0",
-          borderLeft: "3px solid #3da85a",
+          justifyContent: "space-around", padding: "16px 0", borderLeft: "3px solid #3da85a"
         }}>
           <HorseSVG size={60} flip />
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "center" }}>
