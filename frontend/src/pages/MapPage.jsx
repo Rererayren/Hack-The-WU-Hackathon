@@ -311,7 +311,7 @@ export default function MapPage() {
         <div style={{ textAlign: "center", zIndex: 1 }}>
           <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", background: "#f9e04b", borderRadius: "50%", width: 90, height: 90, justifyContent: "center", border: "5px solid #5a3e1b", boxShadow: "4px 4px 0 #5a3e1b" }}>
             <div style={{ fontSize: "30px", lineHeight: 1 }}>🐴</div>
-            <div style={{ fontSize: "11px", fontWeight: 900, color: "#5a3e1b", lineHeight: 1.1 }}>ROADIE</div>
+            <div style={{ fontSize: "11px", fontWeight: 900, color: "#5a3e1b", lineHeight: 1.1 }}>ROADY</div>
           </div>
         </div>
         <div style={{ width: "80px" }}></div>

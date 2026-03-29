@@ -5,8 +5,23 @@ const categories = [
   { title: 'PLAYTIME',  to: '/game',   icon: '🎮', badge: "Let's play! 🕹️", bg: '#F0FFF4', ring: '#43A047', shadow: '#A5D6A7', bubble: '#C8E6C9', text: '#1B5E20', badgeBg: '#C8E6C9', badgeText: '#1B5E20', delay: '0s'   },
   { title: 'SOUND',     to: '/horns',  icon: '🎺', badge: 'Toot toot! 📯',   bg: '#FFF5E8', ring: '#FB8C00', shadow: '#FFCC80', bubble: '#FFE0B2', text: '#E65100', badgeBg: '#FFE0B2', badgeText: '#BF360C', delay: '.4s'  },
   { title: 'TALK TIME', to: '/themes', icon: '📻', badge: 'Chat away! 💬',   bg: '#F5F0FF', ring: '#8E24AA', shadow: '#CE93D8', bubble: '#E1BEE7', text: '#4A148C', badgeBg: '#E1BEE7', badgeText: '#4A148C', delay: '.8s'  },
+  { 
+  title: 'DJ ROADY', 
+  to: '/radio', 
+  icon: '🎧', 
+  badge: 'Mix the beats! ⚡',   
+  bg: '#F5F3FF',    // Soft Lavender
+  ring: '#7C3AED',  // Deep Violet
+  shadow: '#C4B5FD', 
+  bubble: '#DDD6FE', 
+  text: '#4C1D95', 
+  badgeBg: '#DDD6FE', 
+  badgeText: '#4C1D95', 
+  delay: '1.0s' 
+},
   { title: 'VISION',    to: '/safety', icon: '🛡️', badge: 'Keep me safe!',   bg: '#FFF0F0', ring: '#FF5252', shadow: '#FFAAAA', bubble: '#FFCDD2', text: '#C62828', badgeBg: '#FFCDD2', badgeText: '#B71C1C', delay: '1.2s' },
   { title: 'MY MAP',    to: '/map',    icon: '🗺️', badge: 'Explore! 🧭',    bg: '#EEF6FF', ring: '#1E88E5', shadow: '#90CAF9', bubble: '#BBDEFB', text: '#0D47A1', badgeBg: '#BBDEFB', badgeText: '#0D47A1', delay: '1.6s' },
+ 
 ];
 const STAR_COLORS = ['#FF8A80','#FFCA28','#69F0AE','#80D8FF','#B388FF','#FF80AB','#CCF9B0','#FFAB40'];
 
