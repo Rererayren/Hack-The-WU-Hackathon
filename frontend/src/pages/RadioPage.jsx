@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Peer from 'peerjs';
 
+// IDs matched perfectly to your /sounds/ filenames
 const INSTRUMENTS = [
-  { id: 'trumpet', label: 'HONK!',    emoji: '🎺', color: '#FF70A6', shadow: '#D64D85' },
-  { id: 'drums',   label: 'BOOM!',    emoji: '🥁', color: '#70D6FF', shadow: '#4DA9CC' },
+  { id: 'airhorn', label: 'HONK!',    emoji: '📢', color: '#FF70A6', shadow: '#D64D85' },
+  { id: 'drum',    label: 'BOOM!',    emoji: '🥁', color: '#70D6FF', shadow: '#4DA9CC' }, 
   { id: 'guitar',  label: 'ROCK!',    emoji: '🎸', color: '#FF9770', shadow: '#D67554' },
   { id: 'piano',   label: 'DING!',    emoji: '🎹', color: '#A380FF', shadow: '#7F5FCC' },
 ];
@@ -12,54 +13,71 @@ const INSTRUMENTS = [
 export default function RadioPage() {
   const [gasLevel, setGasLevel] = useState(0);
   const [status, setStatus] = useState('Wait...');
-  const dataConn = useRef(null);
   
-  // 🎵 Audio Management Refs
-  const bgMusicRef = useRef(null); 
+  // 📡 Refs for Networking and Audio
+  const dataConn = useRef(null);
+  const bgMusicRef = useRef(null); // Kept in case you pass a global audio ref later
 
+  // 1. Setup PeerJS Connection
   useEffect(() => {
     const peer = new Peer('roady-dj-deck', { host: 'localhost', port: 5000, path: '/peerjs' });
+    
     peer.on('open', () => {
       setStatus('Ready! ✅');
       const conn = peer.connect('roady-pony-device');
-      conn.on('open', () => { dataConn.current = conn; setStatus('Online! 🐴'); });
+      conn.on('open', () => { 
+        dataConn.current = conn; 
+        setStatus('Online! 🐴'); 
+      });
     });
-    return () => peer.destroy();
+
+    return () => {
+      peer.destroy();
+    };
   }, []);
 
-  // ✨ THE DUCKING LOGIC
+  // 2. Audio Ducking Logic (Lowers background music if bgMusicRef is ever set)
   const playSoundWithDucking = (soundPath) => {
-    // 1. If background music is playing, lower the volume
     if (bgMusicRef.current) {
-      bgMusicRef.current.volume = 0.2; 
+      bgMusicRef.current.volume = 0.2; // Lower music to 20%
     }
 
     const sfx = new Audio(soundPath);
     
-    // 2. When the sound effect ends, bring the music back up
     sfx.onended = () => {
       if (bgMusicRef.current) {
-        bgMusicRef.current.volume = 1.0;
+        bgMusicRef.current.volume = 1.0; // Bring music back to 100%
       }
     };
 
-    sfx.play().catch(e => console.log("Audio play blocked or missing file"));
+    sfx.play().catch(e => console.error("Make sure file exists at:", soundPath));
   };
 
+  // 3. Send Command to Car & Play Sound Locally
   const sendCommand = (type, id) => {
-    const soundPath = type === 'FART' ? '/sounds/mega_fart.mp3' : `/sounds/${id}.mp3`;
+    const fileName = type === 'FART' ? 'fart.mp3' : `${id}.mp3`;
+    const soundPath = `/sounds/${fileName}`; 
     
     if (dataConn.current?.open) {
       dataConn.current.send(JSON.stringify({ type, id }));
     }
     
-    // Play locally with the volume ducking effect
     playSoundWithDucking(soundPath);
   };
 
-  const pumpGas = () => { if (gasLevel < 100) setGasLevel(prev => Math.min(prev + 20, 100)); };
-  const releaseGas = () => { if (gasLevel >= 100) { sendCommand('FART', 'mega_fart'); setGasLevel(0); } };
+  // 4. Gas Tank Mechanics
+  const pumpGas = () => { 
+    if (gasLevel < 100) setGasLevel(prev => Math.min(prev + 20, 100)); 
+  };
+  
+  const releaseGas = () => { 
+    if (gasLevel >= 100) { 
+      sendCommand('FART', 'fart'); 
+      setGasLevel(0); 
+    } 
+  };
 
+  // 5. The UI Render
   return (
     <div style={{ 
       background: '#FDFFB6', 
@@ -74,6 +92,7 @@ export default function RadioPage() {
       overflow: 'hidden' 
     }}>
       
+      {/* 📦 Safety Zone Container */}
       <div style={{
         width: '100%',
         maxWidth: '800px',      
@@ -85,23 +104,26 @@ export default function RadioPage() {
         boxSizing: 'border-box'
       }}>
 
+        {/* 🏡 Header (Theme button removed) */}
         <header style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center', flexShrink: 0 }}>
           <Link to="/" style={{ 
             textDecoration: 'none', background: '#FFD6A5', padding: '10px 18px', 
             borderRadius: '20px', color: '#8B4513', fontSize: '14px', fontWeight: '900',
             boxShadow: '0 4px 0 #EAB676' 
           }}>🏠 HOME</Link>
+
           <div style={{ background: '#CAFFBF', padding: '8px 18px', borderRadius: '25px', fontSize: '12px', border: '2px solid #95D5B2' }}>
             {status === 'Online! 🐴' ? 'Pony Linked! ✨' : 'Searching...'}
           </div>
         </header>
 
+        {/* 💨 Gas Tank Section */}
         <section style={{ 
           background: '#FFFFFF', padding: '20px', borderRadius: '35px', 
           border: '5px solid #BDB2FF', boxShadow: '0 8px 0 #9D94E0',
           flex: '0 1 auto', marginBottom: '25px'
         }}>
-          <h2 style={{ fontSize: '24px', marginBottom: '10px', color: '#A380FF', marginTop: 0 }}>FART POWER! 💨</h2>
+          <h2 style={{ fontSize: '24px', marginBottom: '10px', color: '#A380FF', marginTop: 0 }}>Pump the Gas!</h2>
           
           <div style={{ 
             width: '100%', height: '44px', background: '#F0F0F0', borderRadius: '22px', 
@@ -125,11 +147,13 @@ export default function RadioPage() {
               flex: 1, padding: '15px', borderRadius: '20px', border: 'none', 
               background: gasLevel >= 100 ? '#9BF6FF' : '#D0D0D0', 
               color: gasLevel >= 100 ? '#0077B6' : '#888', fontSize: '20px', fontWeight: '900', 
-              boxShadow: gasLevel >= 100 ? '0 6px 0 #7ACDD6' : '0 6px 0 #B0B0B0'
+              boxShadow: gasLevel >= 100 ? '0 6px 0 #7ACDD6' : '0 6px 0 #B0B0B0',
+              cursor: gasLevel >= 100 ? 'pointer' : 'not-allowed'
             }}>POOF!</button>
           </div>
         </section>
 
+        {/* 🎷 Instrument Grid Section */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <h3 style={{ fontSize: '20px', marginBottom: '15px', color: '#5C3317', marginTop: 0 }}>PLAY A SONG! 🎶</h3>
           <div style={{ 
@@ -152,6 +176,7 @@ export default function RadioPage() {
                 }}
                 onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.96)'}
                 onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
                 <div style={{ fontSize: '48px' }}>{ins.emoji}</div>
                 <div style={{ fontWeight: '900', fontSize: '18px', marginTop: '5px' }}>{ins.label}</div>
