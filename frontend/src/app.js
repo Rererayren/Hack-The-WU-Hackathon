@@ -6,10 +6,11 @@ import SafetyCamera from './pages/SafetyCamera';
 import GameMode from './pages/GameMode';
 import MapPage from './pages/MapPage';
 import SoundBoard from './pages/SoundBoard';
-
+import MusicPlayer from './components/MusicPlayer';
 function App() {
   return (
     <Router>
+      <MusicPlayer />
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/safety" element={<SafetyCamera />} />
